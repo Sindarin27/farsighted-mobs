@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.resources.RegistryOps;
@@ -34,7 +35,13 @@ public class AttributeRulesManager extends SimpleJsonResourceReloadListener {
     @Override
     // Apply rule-reading to datapacks
     protected void apply(Map<ResourceLocation, JsonElement> objects, ResourceManager resourceManager, ProfilerFiller profilerFiller) {
-        RegistryOps<JsonElement> registryOps = VanillaRegistries.createLookup().createSerializationContext(JsonOps.INSTANCE);
+        DynamicOps<JsonElement> jsonOps = JsonOps.INSTANCE;
+        try {
+            RegistryOps<JsonElement> registryOps = VanillaRegistries.createLookup().createSerializationContext(JsonOps.INSTANCE);
+            jsonOps = registryOps;
+        } catch (IllegalStateException exception) {
+            LOGGER.warn("Failed to build vanilla registry lookup, falling back to plain JSON parsing for attribute rules", exception);
+        }
         rules = new ArrayList<>();
 
         for (Map.Entry<ResourceLocation, JsonElement> entry : objects.entrySet()) {
@@ -42,7 +49,7 @@ public class AttributeRulesManager extends SimpleJsonResourceReloadListener {
             if (resourcelocation.getPath().startsWith("_"))
                 continue; //Forge: filter anything beginning with "_" as it's used for metadata. Just in case.
             try {
-                AttributeRule decoded = AttributeRule.CODEC.codec().parse(registryOps, entry.getValue()).getOrThrow(JsonParseException::new);
+                AttributeRule decoded = AttributeRule.CODEC.codec().parse(jsonOps, entry.getValue()).getOrThrow(JsonParseException::new);
                 decoded.identifier = resourcelocation;
                 rules.add(decoded);
             } catch (IllegalArgumentException | JsonParseException jsonparseexception) {
