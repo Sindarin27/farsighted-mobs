@@ -1,7 +1,7 @@
 package net.sindarin27.farsightedmobs.fabric;
 
 import net.fabricmc.api.ModInitializer;
-
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.sindarin27.farsightedmobs.FarsightedMobs;
 
 public final class FarsightedMobsFabric implements ModInitializer {
@@ -13,5 +13,7 @@ public final class FarsightedMobsFabric implements ModInitializer {
 
         // Run our common setup.
         FarsightedMobs.init();
+
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> FarsightedMobs.attributeRulesManager.setRegistryLookup(server.registryAccess()));
     }
 }

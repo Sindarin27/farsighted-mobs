@@ -15,6 +15,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.level.storage.loot.predicates.LootItemConditionType;
 import net.sindarin27.farsightedmobs.predicates.DifficultyPredicate;
 import net.sindarin27.farsightedmobs.predicates.MoonBrightnessPredicate;
@@ -24,6 +28,7 @@ import net.sindarin27.farsightedmobs.predicates.origin.ClampedLocalDifficultyPre
 import net.sindarin27.farsightedmobs.predicates.origin.LocalDifficultyPredicate;
 import org.slf4j.Logger;
 
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import static net.sindarin27.farsightedmobs.AttributeUtility.FixFollowRange;
@@ -88,12 +93,22 @@ public final class FarsightedMobs {
     }
 
     public static void OnMobSpawn(ServerLevel level, Mob mob) {
-        // Handle attribute rules
-        attributeRulesManager.GetRules().forEachOrdered(rule -> {
-            boolean applied = rule.Apply(level, mob);
+        Player closestPlayer = level.getNearestPlayer(mob, 2048);
+
+        LootParams params = new LootParams.Builder(level)
+                .withParameter(LootContextParams.THIS_ENTITY, mob)
+                .withParameter(LootContextParams.ORIGIN, mob.position())
+                .withLuck(closestPlayer != null ? closestPlayer.getLuck() : 0f)
+                .withOptionalParameter(LootContextParams.ATTACKING_ENTITY, closestPlayer)
+                .create(AttributeRule.SPAWN_CONDITION);
+
+        LootContext context = new LootContext.Builder(params).create(Optional.empty());
+
+        for (AttributeRule rule : attributeRulesManager.GetRules()) {
+            boolean applied = rule.Apply(mob, context);
             if (DEBUG)
                 LOGGER.info("Rule {} with priority {} on mob {} evaluated as {}", rule.identifier, rule.getPriority(), mob.getType().getDescriptionId(), applied);
-        });
+        }
 
         // Fix the minecraft bug that causes entities to never update their follow range by updating it once they spawn
         FixFollowRange(mob);

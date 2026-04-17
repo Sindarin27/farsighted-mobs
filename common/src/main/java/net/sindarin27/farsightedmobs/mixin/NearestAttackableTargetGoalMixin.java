@@ -7,6 +7,6 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(NearestAttackableTargetGoal.class)
 public interface NearestAttackableTargetGoalMixin {
-    @Accessor
+    @Accessor("targetConditions")
     TargetingConditions getTargetConditions();
 }

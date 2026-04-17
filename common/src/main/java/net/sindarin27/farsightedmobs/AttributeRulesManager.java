@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceLocation;
@@ -18,11 +19,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 public class AttributeRulesManager extends SimpleJsonResourceReloadListener {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private List<AttributeRule> rules = new ArrayList<>();
+    private volatile List<AttributeRule> rules = new ArrayList<>();
+    private HolderLookup.Provider registryLookup = VanillaRegistries.createLookup();
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
@@ -31,11 +32,15 @@ public class AttributeRulesManager extends SimpleJsonResourceReloadListener {
         super(GSON, "farsightedmobs_spawn_attributes");
     }
 
+    public void setRegistryLookup(HolderLookup.Provider lookup) {
+        this.registryLookup = lookup;
+    }
+
     @Override
     // Apply rule-reading to datapacks
     protected void apply(Map<ResourceLocation, JsonElement> objects, ResourceManager resourceManager, ProfilerFiller profilerFiller) {
-        RegistryOps<JsonElement> registryOps = VanillaRegistries.createLookup().createSerializationContext(JsonOps.INSTANCE);
-        rules = new ArrayList<>();
+        RegistryOps<JsonElement> registryOps = registryLookup.createSerializationContext(JsonOps.INSTANCE);
+        List<AttributeRule> newRules = new ArrayList<>();
 
         for (Map.Entry<ResourceLocation, JsonElement> entry : objects.entrySet()) {
             ResourceLocation resourcelocation = entry.getKey();
@@ -44,16 +49,17 @@ public class AttributeRulesManager extends SimpleJsonResourceReloadListener {
             try {
                 AttributeRule decoded = AttributeRule.CODEC.codec().parse(registryOps, entry.getValue()).getOrThrow(JsonParseException::new);
                 decoded.identifier = resourcelocation;
-                rules.add(decoded);
+                newRules.add(decoded);
             } catch (IllegalArgumentException | JsonParseException jsonparseexception) {
                 LOGGER.error("Parsing error loading rule {}", resourcelocation, jsonparseexception);
             }
         }
-        
-        rules.sort(Comparator.comparing(AttributeRule::getPriority));
+
+        newRules.sort(Comparator.comparing(AttributeRule::getPriority));
+        this.rules = newRules;
     }
     
-    public Stream<AttributeRule> GetRules() {
-        return rules.stream();
+    public List<AttributeRule> GetRules() {
+        return rules;
     }
 }

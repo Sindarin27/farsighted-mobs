@@ -36,11 +36,12 @@ public class AttributeUtility {
     // Workaround for MC-145656 (https://bugs.mojang.com/browse/MC-145656)
     // Should no longer be needed from 1.21.1 onwards, but does no harm either
     public static void FixFollowRange(Mob mob) {
-        ((MobMixin) mob).getTargetSelector().getAvailableGoals().forEach(wrappedGoal -> {
+        double followRange = mob.getAttributeValue(Attributes.FOLLOW_RANGE);
+        for (net.minecraft.world.entity.ai.goal.WrappedGoal wrappedGoal : ((MobMixin) mob).getTargetSelector().getAvailableGoals()) {
             Goal goal = wrappedGoal.getGoal();
             if (goal instanceof NearestAttackableTargetGoal<?> natGoal) {
-                ((NearestAttackableTargetGoalMixin) natGoal).getTargetConditions().range(mob.getAttributeValue(Attributes.FOLLOW_RANGE));
+                ((NearestAttackableTargetGoalMixin) natGoal).getTargetConditions().range(followRange);
             }
-        });
+        }
     }
 }
